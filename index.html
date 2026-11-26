@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ea580c" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="残業メモ帳" />
+    <link rel="manifest" href="assets/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png" />
+    <title>残業メモ帳</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+      :root {
+        --bg: #edf0f5;
+        --card: #ffffff;
+        --ink: #1e293b;
+        --sub: #64748b;
+        --line: #e2e8f0;
+        --accent: #ea580c;
+        --accent-strong: #c2410c;
+        --accent-soft: #ffedd5;
+        --accent-ink: #9a3412;
+        --chip: #f1f5f9;
+        --warn: #dc2626;
+        --warn-soft: #fee2e2;
+        --teal: #0f766e;
+        --teal-soft: #ccfbf1;
+        --shadow: 0 2px 10px rgba(30, 41, 59, 0.07);
+        --cal-1: #ffedd5;
+        --cal-2: #fed7aa;
+        --cal-3: #fdba74;
+        --cal-4: #fb923c;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1220;
+          --card: #16202f;
+          --ink: #f1f5f9;
+          --sub: #94a3b8;
+          --line: #263449;
+          --accent: #fb923c;
+          --accent-strong: #fdba74;
+          --accent-soft: #3d270e;
+          --accent-ink: #fdba74;
+          --chip: #1e293b;
+          --warn: #f87171;
+          --warn-soft: #451a1a;
+          --teal: #2dd4bf;
+          --teal-soft: #123c38;
+          --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+          --cal-1: #3d270e;
+          --cal-2: #5c3a12;
+          --cal-3: #8a5416;
+          --cal-4: #c2410c;
+        }
+      }
+      * { box-sizing: border-box; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+        line-height: 1.5;
+      }
+      button, input, select, textarea { font-family: inherit; }
+      button { cursor: pointer; }
+      .wrap {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 16px 14px calc(110px + env(safe-area-inset-bottom, 0px));
+      }
+
+      /* ---------- 月ナビ ---------- */
+      .month-nav {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; margin-bottom: 14px;
+      }
+      .month-title { font-size: 22px; font-weight: 800; letter-spacing: 0.02em; }
+      .month-title small { font-size: 13px; color: var(--sub); font-weight: 700; margin-left: 6px; }
+      .nav-btn {
+        min-width: 44px; min-height: 44px;
+        border: 1px solid var(--line); background: var(--card); color: var(--ink);
+        border-radius: 999px; font-size: 18px; font-weight: 800;
+        display: inline-flex; align-items: center; justify-content: center;
+        box-shadow: var(--shadow);
+      }
+      .nav-btn:active { transform: scale(0.94); }
+      .today-btn {
+        min-height: 44px; padding: 0 16px;
+        border: 1px solid var(--line); background: var(--card); color: var(--accent-strong);
+        border-radius: 999px; font-size: 14px; font-weight: 800; box-shadow: var(--shadow);
+      }
+
+      /* ---------- カード共通 ---------- */
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+        padding: 18px 16px;
+        margin-bottom: 14px;
+      }
+      .card h2 {
+        margin: 0 0 12px; font-size: 15px; font-weight: 800;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .card h2 .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--accent); flex: none; }
+
+      /* ---------- 合計ヒーロー ---------- */
+      .hero { text-align: center; padding: 22px 16px 18px; overflow: hidden; position: relative; }
+      .hero-label { font-size: 13px; font-weight: 700; color: var(--sub); }
+      .hero-total {
+        font-size: 52px; font-weight: 800; line-height: 1.15; color: var(--accent-strong);
+        font-variant-numeric: tabular-nums; margin: 2px 0 4px;
+      }
+      .hero-total .unit { font-size: 22px; margin: 0 2px; }
+      .hero-sub { font-size: 13px; color: var(--sub); font-weight: 700; }
+      .stat-row {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px;
+      }
+      .stat {
+        background: var(--chip); border-radius: 12px; padding: 10px 4px;
+      }
+      .stat .v { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+      .stat .v small { font-size: 11px; font-weight: 700; }
+      .stat .k { font-size: 11px; color: var(--sub); font-weight: 700; margin-top: 1px; }
+      .progress-wrap { margin-top: 16px; text-align: left; }
+      .progress-head {
+        display: flex; justify-content: space-between; align-items: baseline;
+        font-size: 12px; font-weight: 700; color: var(--sub); margin-bottom: 6px;
+      }
+      .progress-head .remain { color: var(--ink); font-size: 13px; }
+      .progress-head .remain.over { color: var(--warn); }
+      .progress-track {
+        height: 14px; border-radius: 999px; background: var(--chip); overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%; width: 0%; border-radius: 999px;
+        background: var(--accent);
+      }
+      .progress-fill.over { background: var(--warn); }
+      .cheer { margin-top: 12px; font-size: 14px; font-weight: 800; color: var(--teal); min-height: 21px; }
+      .cheer.warn { color: var(--warn); }
+
+      /* ---------- カレンダー ---------- */
+      .cal-head, .cal-grid {
+        display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+      }
+      .cal-head div {
+        text-align: center; font-size: 11px; font-weight: 800; color: var(--sub); padding: 2px 0;
+      }
+      .cal-head div.sun { color: var(--warn); }
+      .cal-head div.sat { color: #2563eb; }
+      @media (prefers-color-scheme: dark) { .cal-head div.sat { color: #60a5fa; } }
+      .cal-cell {
+        min-height: 52px; border-radius: 10px; border: 1px solid transparent;
+        padding: 4px 2px 3px; text-align: center; background: transparent;
+        width: 100%; color: var(--ink);
+        display: flex; flex-direction: column; align-items: center; gap: 1px;
+      }
+      button.cal-cell:active { transform: scale(0.95); }
+      .cal-cell .d { font-size: 13px; font-weight: 700; line-height: 1.2; }
+      .cal-cell .h { font-size: 10px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
+      .cal-cell.lv1 { background: var(--cal-1); }
+      .cal-cell.lv2 { background: var(--cal-2); }
+      .cal-cell.lv3 { background: var(--cal-3); }
+      .cal-cell.lv4 { background: var(--cal-4); color: #fff; }
+      .cal-cell.today { border-color: var(--accent); }
+      .cal-cell.selected { border-color: var(--ink); border-width: 2px; }
+      .cal-cell.empty { visibility: hidden; }
+      .cal-legend {
+        display: flex; align-items: center; gap: 5px; margin-top: 10px;
+        font-size: 11px; color: var(--sub); font-weight: 700;
+      }
+      .cal-legend .sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+
+      /* ---------- 追加フォーム ---------- */
+      .field-label { font-size: 12px; font-weight: 800; color: var(--sub); margin: 14px 0 6px; }
+      .field-label:first-of-type { margin-top: 0; }
+      input[type="date"], input[type="text"] {
+        width: 100%; min-height: 48px;
+        border: 1.5px solid var(--line); border-radius: 12px;
+        background: var(--card); color: var(--ink);
+        font-size: 16px; font-weight: 700; padding: 8px 12px;
+      }
+      input[type="date"]:focus, input[type="text"]:focus {
+        outline: none; border-color: var(--accent);
+      }
+      .date-row { display: flex; gap: 8px; align-items: stretch; }
+      .date-row input[type="date"] { flex: 1; min-width: 0; }
+      .today-date-btn {
+        flex: none; min-height: 48px; padding: 0 18px;
+        border-radius: 12px; border: 1.5px solid var(--accent);
+        background: var(--accent-soft); color: var(--accent-ink);
+        font-size: 15px; font-weight: 800;
+      }
+      .today-date-btn:active { transform: scale(0.96); }
+      .dur-display {
+        text-align: center; font-size: 34px; font-weight: 800;
+        font-variant-numeric: tabular-nums; padding: 4px 0 2px; color: var(--accent-strong);
+      }
+      .dur-display .unit { font-size: 17px; margin: 0 2px; }
+      .stepper {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      }
+      .stepper button {
+        min-height: 44px; border-radius: 12px; border: 1.5px solid var(--line);
+        background: var(--chip); color: var(--ink); font-size: 14px; font-weight: 800;
+      }
+      .stepper button:active { transform: scale(0.95); background: var(--accent-soft); }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+      .chip-btn {
+        min-height: 40px; padding: 0 14px; border-radius: 999px;
+        border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+        font-size: 14px; font-weight: 800;
+      }
+      .chip-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+      .chip-btn:active { transform: scale(0.95); }
+      .add-btn {
+        width: 100%; min-height: 54px; margin-top: 18px;
+        border: none; border-radius: 14px;
+        background: var(--accent); color: #fff;
+        font-size: 17px; font-weight: 800; letter-spacing: 0.04em;
+        box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+      }
+      .add-btn:active { transform: scale(0.98); }
+      .add-btn.editing { background: var(--teal); box-shadow: 0 4px 14px rgba(15, 118, 110, 0.35); }
+      .cancel-edit {
+        width: 100%; min-height: 44px; margin-top: 8px;
+        border: 1.5px solid var(--line); border-radius: 12px;
+        background: var(--card); color: var(--sub); font-size: 14px; font-weight: 800;
+        display: none;
+      }
+      .cancel-edit.show { display: block; }
+
+      /* ---------- 記録リスト ---------- */
+      .entry {
+        display: flex; align-items: center; gap: 10px;
+        padding: 11px 2px; border-bottom: 1px solid var(--line);
+      }
+      .entry:last-child { border-bottom: none; }
+      .entry-date { flex: none; width: 74px; }
+      .entry-date .md { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+      .entry-date .wd { font-size: 11px; color: var(--sub); font-weight: 700; }
+      .entry-date .wd.sun { color: var(--warn); }
+      .entry-main { flex: 1; min-width: 0; }
+      .entry-dur {
+        display: inline-block; background: var(--accent-soft); color: var(--accent-ink);
+        font-size: 13px; font-weight: 800; border-radius: 999px; padding: 2px 10px;
+        font-variant-numeric: tabular-nums;
+      }
+      .entry-memo {
+        font-size: 13px; color: var(--sub); font-weight: 500;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
+      }
+      .icon-btn {
+        flex: none; width: 40px; height: 40px; border-radius: 10px;
+        border: 1px solid var(--line); background: var(--card); color: var(--sub);
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .icon-btn:active { transform: scale(0.92); }
+      .icon-btn.danger { color: var(--warn); }
+      .icon-btn svg { width: 17px; height: 17px; }
+      /* ---------- 月ごとの集計 ---------- */
+      .month-row {
+        display: flex; align-items: center; gap: 10px; width: 100%;
+        padding: 11px 6px; border: none; border-bottom: 1px solid var(--line);
+        background: transparent; color: var(--ink); text-align: left;
+        font-size: 14px; border-radius: 10px;
+      }
+      .month-row:last-of-type { border-bottom: none; }
+      .month-row .m { font-weight: 800; flex: none; width: 92px; font-variant-numeric: tabular-nums; }
+      .month-row .t { flex: 1; font-weight: 800; color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+      .month-row .c { font-size: 12px; color: var(--sub); font-weight: 700; flex: none; }
+      .month-row.current { background: var(--accent-soft); }
+      .month-row:active { transform: scale(0.99); }
+      .month-total-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        border-top: 2px solid var(--line); margin-top: 6px; padding: 10px 6px 0;
+        font-weight: 800; font-size: 14px;
+      }
+      .month-total-row .t { color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+
+      .empty-state {
+        text-align: center; padding: 26px 8px; color: var(--sub);
+      }
+      .empty-state .big { font-size: 34px; margin-bottom: 6px; }
+      .empty-state p { margin: 0; font-size: 14px; font-weight: 700; }
+
+      /* ---------- 出力まわり ---------- */
+      .export-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+      .export-btn {
+        min-height: 48px; border-radius: 12px; border: 1.5px solid var(--line);
+        background: var(--card); color: var(--ink); font-size: 13px; font-weight: 800;
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        text-align: center; padding: 6px 4px;
+      }
+      .export-btn:active { transform: scale(0.96); }
+      .export-note { font-size: 11px; color: var(--sub); font-weight: 500; margin: 10px 0 0; }
+
+      /* ---------- ホーム画面＆GitHub ---------- */
+      .howto { margin: 0 0 4px; padding-left: 20px; font-size: 13px; font-weight: 500; }
+      .howto li { margin-bottom: 7px; }
+      .howto li:last-child { margin-bottom: 0; }
+      .howto b { font-weight: 800; }
+      .gh-btn {
+        width: 100%; min-height: 52px; margin-top: 12px;
+        border: none; border-radius: 14px;
+        background: var(--ink); color: var(--bg);
+        font-size: 15px; font-weight: 800; letter-spacing: 0.02em;
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      }
+      .gh-btn:active { transform: scale(0.98); }
+      .gh-btn svg { width: 19px; height: 19px; flex: none; }
+
+      .toast {
+        position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%) translateY(20px);
+        background: var(--ink); color: var(--bg);
+        font-size: 14px; font-weight: 800;
+        padding: 11px 20px; border-radius: 999px;
+        opacity: 0; pointer-events: none; z-index: 50;
+        max-width: calc(100vw - 32px); text-align: center;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <!-- 月ナビ -->
+      <div class="month-nav">
+        <button class="nav-btn" id="prev-month" type="button" aria-label="前の月">‹</button>
+        <div class="month-title"><span id="month-title">----年--月</span><small id="month-state"></small></div>
+        <div style="display:flex; gap:8px;">
+          <button class="today-btn" id="this-month" type="button">今月</button>
+          <button class="nav-btn" id="next-month" type="button" aria-label="次の月">›</button>
+        </div>
+      </div>
+
+      <!-- 合計 -->
+      <section class="card hero anim-in">
+        <div class="hero-label" id="hero-label">今月の残業 合計</div>
+        <div class="hero-total" id="hero-total">0<span class="unit">時間</span></div>
+        <div class="hero-sub" id="hero-sub">まずは1件、記録してみよう</div>
+        <div class="stat-row">
+          <div class="stat"><div class="v" id="stat-days">0<small>日</small></div><div class="k">残業した日</div></div>
+          <div class="stat"><div class="v" id="stat-avg">0<small>時間</small></div><div class="k">1日平均</div></div>
+          <div class="stat"><div class="v" id="stat-max">0<small>時間</small></div><div class="k">いちばん多い日</div></div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-head">
+            <span>月45時間までの進みぐあい</span>
+            <span class="remain" id="progress-remain"></span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+        <div class="cheer" id="cheer"></div>
+      </section>
+
+      <!-- カレンダー -->
+      <section class="card anim-in">
+        <h2><span class="dot"></span>カレンダー（日をタップで入力日にセット）</h2>
+        <div class="cal-head">
+          <div class="sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="sat">土</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-legend">
+          <span>少ない</span>
+          <span class="sw" style="background:var(--cal-1)"></span>
+          <span class="sw" style="background:var(--cal-2)"></span>
+          <span class="sw" style="background:var(--cal-3)"></span>
+          <span class="sw" style="background:var(--cal-4)"></span>
+          <span>多い</span>
+        </div>
+      </section>
+
+      <!-- 追加フォーム -->
+      <section class="card anim-in">
+        <h2><span class="dot"></span><span id="form-title">残業を記録する</span></h2>
+        <div class="field-label">日付</div>
+        <div class="date-row">
+          <input type="date" id="f-date" />
+          <button type="button" class="today-date-btn" id="today-date-btn">今日</button>
+        </div>
+        <div class="field-label">残業時間</div>
+        <div class="dur-display" id="dur-display"></div>
+        <div class="stepper">
+          <button type="button" data-step="-30">−30分</button>
+          <button type="button" data-step="-15">−15分</button>
+          <button type="button" data-step="15">＋15分</button>
+          <button type="button" data-step="30">＋30分</button>
+        </div>
+        <div class="chips" id="dur-chips">
+          <button type="button" class="chip-btn" data-min="30">30分</button>
+          <button type="button" class="chip-btn" data-min="60">1時間</button>
+          <button type="button" class="chip-btn" data-min="90">1時間半</button>
+          <button type="button" class="chip-btn" data-min="120">2時間</button>
+          <button type="button" class="chip-btn" data-min="150">2時間半</button>
+          <button type="button" class="chip-btn" data-min="180">3時間</button>
+          <button type="button" class="chip-btn" data-min="240">4時間</button>
+        </div>
+        <div class="field-label">メモ（任意）</div>
+        <input type="text" id="f-memo" placeholder="例：月末処理、納品対応 など" maxlength="60" />
+        <button class="add-btn" id="add-btn" type="button">＋ 記録する</button>
+        <button class="cancel-edit" id="cancel-edit" type="button">編集をやめる</button>
+      </section>
+
+      <!-- 記録リスト -->
+      <section class="card anim-in">
+        <h2><span class="dot"></span>この月の記録 <span id="list-count" style="color:var(--sub); font-size:12px;"></span></h2>
+        <div id="entry-list"></div>
+      </section>
+
+      <!-- 月ごとの集計 -->
+      <section class="card anim-in">
+        <h2><span class="dot"></span>月ごとの集計（月をタップで移動）</h2>
+        <div id="month-summary"></div>
+      </section>
+
+      <!-- 出力 -->
+      <section class="card anim-in">
+        <h2><span class="dot"></span>データの書き出し・読み込み</h2>
+        <div class="export-row">
+          <button class="export-btn" id="csv-btn" type="button">CSVで出す<br />（表示中の月）</button>
+          <button class="export-btn" id="json-btn" type="button">JSON保存<br />（全データ）</button>
+          <label class="export-btn" for="json-file">JSON読込<br />（復元）</label>
+          <input type="file" id="json-file" accept=".json,application/json" hidden />
+        </div>
+        <p class="export-note">記録はこの端末に自動保存されます。CSVは月ごとの集計用、JSONはバックアップ用です（JSONを読み込めば復元できます）。</p>
+      </section>
+
+      <!-- ホーム画面＆GitHub -->
+      <section class="card anim-in">
+        <h2><span class="dot"></span>ホーム画面＆GitHubで使う</h2>
+        <ol class="howto">
+          <li><b>ホーム画面に追加：</b>iPhoneは共有ボタン →「ホーム画面に追加」、AndroidはChromeのメニュー →「ホーム画面に追加」。専用アイコンからアプリのように開けます。</li>
+          <li><b>GitHubに置く：</b>下のボタンでファイル一式（ZIP）をダウンロード → GitHubのリポジトリに中身を全部アップロード → Settings → Pages を有効にすると公開されます。</li>
+        </ol>
+        <button class="gh-btn" id="gh-zip-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 1.28 1.06.51.71.51 1.56 0 1.13-.01 2.04-.01 2.32 0 .3.21.67.8.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+          GitHub用ファイルをダウンロード（ZIP）
+        </button>
+        <p class="export-note">ZIPには index.html・manifest.json・アイコン画像と、GitHubへの置き方の説明（README.txt）が入っています。記録は開いた人の端末に保存されるので、他の人の記録と混ざることはありません。</p>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <script>
+      "use strict";
+      var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var hasGsap = typeof window.gsap !== "undefined";
+      var LIMIT_MIN = 45 * 60; // 月45時間の目安
+
+      // ---------- 状態 ----------
+      var now = new Date();
+      var state = {
+        entries: [], // {id, date:"YYYY-MM-DD", minutes, memo}
+        viewY: now.getFullYear(),
+        viewM: now.getMonth(), // 0-based
+        selMin: 60,
+        editId: null,
+        shownTotal: 0
+      };
+
+      // ---------- 自動保存（localStorage） ----------
+      var STORAGE_KEY = "zangyo-memo-v1";
+      function saveData() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, entries: state.entries }));
+        } catch (err) { /* 保存できない環境では無視 */ }
+      }
+      function loadData() {
+        try {
+          var raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return false;
+          var data = JSON.parse(raw);
+          var arr = Array.isArray(data) ? data : data.entries;
+          if (!Array.isArray(arr)) return false;
+          var clean = arr.filter(function (e) {
+            return e && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && isFinite(+e.minutes) && +e.minutes > 0;
+          }).map(function (e) {
+            return { id: e.id || (Date.now() + Math.random()), date: e.date, minutes: Math.round(+e.minutes), memo: String(e.memo || "") };
+          });
+          state.entries = clean;
+          return true;
+        } catch (err) {
+          return false;
+        }
+      }
+
+      // ---------- ユーティリティ ----------
+      function pad(n) { return (n < 10 ? "0" : "") + n; }
+      function dateStr(y, m, d) { return y + "-" + pad(m + 1) + "-" + pad(d); }
+      function todayStr() { var t = new Date(); return dateStr(t.getFullYear(), t.getMonth(), t.getDate()); }
+      function parseDate(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+      var WD = ["日", "月", "火", "水", "木", "金", "土"];
+      function fmtMin(min) {
+        var h = Math.floor(min / 60), m = min % 60;
+        if (h && m) return h + "時間" + m + "分";
+        if (h) return h + "時間";
+        return m + "分";
+      }
+      function fmtMinHtml(min) {
+        var h = Math.floor(min / 60), m = min % 60;
+        if (h && m) return h + '<span class="unit">時間</span>' + m + '<span class="unit">分</span>';
+        if (h) return h + '<span class="unit">時間</span>';
+        return m + '<span class="unit">分</span>';
+      }
+      function esc(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+      }
+      function monthEntries() {
+        return state.entries.filter(function (e) {
+          var d = parseDate(e.date);
+          return d.getFullYear() === state.viewY && d.getMonth() === state.viewM;
+        });
+      }
+      function dayTotals(list) {
+        var map = {};
+        list.forEach(function (e) { map[e.date] = (map[e.date] || 0) + e.minutes; });
+        return map;
+      }
+
+      // ---------- トースト ----------
+      var toastTimer = null;
+      function toast(msg) {
+        var el = document.getElementById("toast");
+        el.textContent = msg;
+        if (hasGsap && !REDUCED) {
+          window.gsap.killTweensOf(el);
+          window.gsap.to(el, { opacity: 1, y: -20, x: "-50%", duration: 0.25, ease: "back.out(2)" });
+        } else {
+          el.style.opacity = "1";
+        }
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () {
+          if (hasGsap && !REDUCED) {
+            window.gsap.to(el, { opacity: 0, y: 0, x: "-50%", duration: 0.3 });
+          } else { el.style.opacity = "0"; }
+        }, 2600);
+      }
+
+      // ---------- 描画：合計 ----------
+      function renderSummary(animate) {
+        var list = monthEntries();
+        var byDay = dayTotals(list);
+        var days = Object.keys(byDay).length;
+        var total = list.reduce(function (a, e) { return a + e.minutes; }, 0);
+        var maxDay = 0;
+        Object.keys(byDay).forEach(function (k) { if (byDay[k] > maxDay) maxDay = byDay[k]; });
+        var avg = days ? Math.round(total / days) : 0;
+
+        document.getElementById("month-title").textContent = state.viewY + "年" + (state.viewM + 1) + "月";
+        var isThisMonth = state.viewY === now.getFullYear() && state.viewM === now.getMonth();
+        document.getElementById("month-state").textContent = isThisMonth ? "今月" : "";
+        document.getElementById("hero-label").textContent =
+          isThisMonth ? "今月の残業 合計" : state.viewY + "年" + (state.viewM + 1) + "月の残業 合計";
+
+        var heroEl = document.getElementById("hero-total");
+        var subEl = document.getElementById("hero-sub");
+        if (days === 0) subEl.textContent = "まずは1件、記録してみよう";
+        else subEl.textContent = days + "日がんばった合計です";
+
+        if (hasGsap && !REDUCED && animate) {
+          var obj = { v: state.shownTotal };
+          window.gsap.to(obj, {
+            v: total, duration: 0.7, ease: "power2.out",
+            onUpdate: function () { heroEl.innerHTML = fmtMinHtml(Math.round(obj.v)); },
+            onComplete: function () { state.shownTotal = total; }
+          });
+        } else {
+          heroEl.innerHTML = fmtMinHtml(total);
+          state.shownTotal = total;
+        }
+
+        document.getElementById("stat-days").innerHTML = days + "<small>日</small>";
+        document.getElementById("stat-avg").innerHTML = fmtMin(avg).replace("時間", "<small>時間</small>").replace(/(\d+)分/, "$1<small>分</small>");
+        document.getElementById("stat-max").innerHTML = fmtMin(maxDay).replace("時間", "<small>時間</small>").replace(/(\d+)分/, "$1<small>分</small>");
+
+        var pct = Math.min(100, total / LIMIT_MIN * 100);
+        var fill = document.getElementById("progress-fill");
+        var remain = document.getElementById("progress-remain");
+        var cheer = document.getElementById("cheer");
+        fill.classList.toggle("over", total >= LIMIT_MIN);
+        if (total >= LIMIT_MIN) {
+          remain.textContent = "45時間を " + fmtMin(total - LIMIT_MIN) + " 超えています";
+          remain.classList.add("over");
+          cheer.textContent = "がんばりすぎ注意！しっかり休んでください";
+          cheer.classList.add("warn");
+        } else {
+          remain.textContent = "あと " + fmtMin(LIMIT_MIN - total);
+          remain.classList.remove("over");
+          cheer.classList.remove("warn");
+          if (total === 0) cheer.textContent = "";
+          else if (total < 10 * 60) cheer.textContent = "いいペースです。この調子！";
+          else if (total < 20 * 60) cheer.textContent = "コツコツ記録できています";
+          else if (total < 30 * 60) cheer.textContent = "半分が見えてきました。無理なくいきましょう";
+          else if (total < 40 * 60) cheer.textContent = "45時間まであと少し。体調に気をつけて";
+          else cheer.textContent = "45時間が近づいています。早めの調整を";
+        }
+        if (hasGsap && !REDUCED && animate) {
+          window.gsap.to(fill, { width: pct + "%", duration: 0.8, ease: "power3.out" });
+        } else {
+          fill.style.width = pct + "%";
+        }
+      }
+
+      // ---------- 描画：カレンダー ----------
+      function renderCalendar() {
+        var grid = document.getElementById("cal-grid");
+        grid.innerHTML = "";
+        var byDay = dayTotals(monthEntries());
+        var first = new Date(state.viewY, state.viewM, 1);
+        var startWd = first.getDay();
+        var lastDay = new Date(state.viewY, state.viewM + 1, 0).getDate();
+        var sel = document.getElementById("f-date").value;
+        var today = todayStr();
+
+        for (var i = 0; i < startWd; i++) {
+          var sp = document.createElement("div");
+          sp.className = "cal-cell empty";
+          grid.appendChild(sp);
+        }
+        for (var d = 1; d <= lastDay; d++) {
+          var ds = dateStr(state.viewY, state.viewM, d);
+          var min = byDay[ds] || 0;
+          var cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = "cal-cell";
+          if (min > 0) {
+            var lv = min <= 60 ? 1 : min <= 120 ? 2 : min <= 180 ? 3 : 4;
+            cell.classList.add("lv" + lv);
+          }
+          if (ds === today) cell.classList.add("today");
+          if (ds === sel) cell.classList.add("selected");
+          cell.innerHTML = '<span class="d">' + d + "</span>" +
+            (min > 0 ? '<span class="h">' + (min % 60 === 0 ? (min / 60) + "h" : (Math.round(min / 6) / 10) + "h") + "</span>" : '<span class="h">&nbsp;</span>');
+          cell.setAttribute("aria-label", d + "日" + (min > 0 ? " 残業" + fmtMin(min) : ""));
+          (function (ds2) {
+            cell.addEventListener("click", function () {
+              document.getElementById("f-date").value = ds2;
+              renderCalendar();
+              if (hasGsap && !REDUCED) {
+                window.gsap.fromTo("#add-btn", { scale: 1 }, { scale: 1.04, duration: 0.12, yoyo: true, repeat: 1, ease: "power1.inOut" });
+              }
+            });
+          })(ds);
+          grid.appendChild(cell);
+        }
+      }
+
+      // ---------- 描画：リスト ----------
+      var ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+      var ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+
+      function renderList(animateLast) {
+        var wrap = document.getElementById("entry-list");
+        var list = monthEntries().slice().sort(function (a, b) {
+          return a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id;
+        });
+        document.getElementById("list-count").textContent = list.length ? "（" + list.length + "件）" : "";
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state"><div class="big"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></div><p>この月の記録はまだありません</p></div>';
+          return;
+        }
+        wrap.innerHTML = "";
+        list.forEach(function (e) {
+          var d = parseDate(e.date);
+          var row = document.createElement("div");
+          row.className = "entry";
+          row.innerHTML =
+            '<div class="entry-date"><div class="md">' + (d.getMonth() + 1) + "/" + d.getDate() + "</div>" +
+            '<div class="wd' + (d.getDay() === 0 ? " sun" : "") + '">（' + WD[d.getDay()] + "）</div></div>" +
+            '<div class="entry-main"><span class="entry-dur">' + fmtMin(e.minutes) + "</span>" +
+            (e.memo ? '<div class="entry-memo">' + esc(e.memo) + "</div>" : "") + "</div>" +
+            '<button type="button" class="icon-btn" data-act="edit" aria-label="編集">' + ICON_EDIT + "</button>" +
+            '<button type="button" class="icon-btn danger" data-act="del" aria-label="削除">' + ICON_TRASH + "</button>";
+          row.querySelector('[data-act="edit"]').addEventListener("click", function () { startEdit(e.id); });
+          row.querySelector('[data-act="del"]').addEventListener("click", function () { removeEntry(e.id, row); });
+          wrap.appendChild(row);
+        });
+        if (hasGsap && !REDUCED) {
+          window.gsap.fromTo("#entry-list .entry",
+            { opacity: 0, y: 14 },
+            { opacity: 1, y: 0, duration: 0.35, stagger: 0.05, ease: "power2.out", overwrite: true, clearProps: "transform" });
+        }
+      }
+
+      // ---------- 描画：月ごとの集計 ----------
+      function renderMonthSummary() {
+        var wrap = document.getElementById("month-summary");
+        if (!state.entries.length) {
+          wrap.innerHTML = '<div class="empty-state"><p>記録が増えると、月ごとの合計がここに並びます</p></div>';
+          return;
+        }
+        var byMonth = {};
+        state.entries.forEach(function (e) {
+          var key = e.date.slice(0, 7);
+          if (!byMonth[key]) byMonth[key] = { total: 0, days: {}, count: 0 };
+          byMonth[key].total += e.minutes;
+          byMonth[key].days[e.date] = true;
+          byMonth[key].count += 1;
+        });
+        var keys = Object.keys(byMonth).sort().reverse();
+        var grand = 0;
+        wrap.innerHTML = "";
+        keys.forEach(function (key) {
+          var info = byMonth[key];
+          grand += info.total;
+          var y = +key.slice(0, 4), m = +key.slice(5, 7) - 1;
+          var row = document.createElement("button");
+          row.type = "button";
+          row.className = "month-row" + (y === state.viewY && m === state.viewM ? " current" : "");
+          row.innerHTML =
+            '<span class="m">' + y + "年" + (m + 1) + "月</span>" +
+            '<span class="t">' + fmtMin(info.total) + "</span>" +
+            '<span class="c">' + Object.keys(info.days).length + "日・" + info.count + "件</span>";
+          row.addEventListener("click", function () {
+            state.viewY = y; state.viewM = m;
+            renderAll(true);
+            window.scrollTo({ top: 0, behavior: REDUCED ? "auto" : "smooth" });
+          });
+          wrap.appendChild(row);
+        });
+        var totalRow = document.createElement("div");
+        totalRow.className = "month-total-row";
+        totalRow.innerHTML = "<span>ぜんぶの月の合計</span>" + '<span class="t">' + fmtMin(grand) + "</span>";
+        wrap.appendChild(totalRow);
+      }
+
+      function renderAll(animate) {
+        renderSummary(animate);
+        renderCalendar();
+        renderList();
+        renderMonthSummary();
+      }
+
+      // ---------- 時間入力 ----------
+      function renderDur() {
+        document.getElementById("dur-display").innerHTML = fmtMinHtml(state.selMin);
+        document.querySelectorAll("#dur-chips .chip-btn").forEach(function (b) {
+          b.classList.toggle("on", +b.getAttribute("data-min") === state.selMin);
+        });
+      }
+      document.querySelectorAll(".stepper button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var step = +b.getAttribute("data-step");
+          state.selMin = Math.max(15, Math.min(12 * 60, state.selMin + step));
+          renderDur();
+          if (hasGsap && !REDUCED) {
+            window.gsap.fromTo("#dur-display", { scale: 1.12 }, { scale: 1, duration: 0.25, ease: "back.out(3)" });
+          }
+        });
+      });
+      document.querySelectorAll("#dur-chips .chip-btn").forEach(function (b) {
+        b.addEventListener("click", function () {
+          state.selMin = +b.getAttribute("data-min");
+          renderDur();
+          if (hasGsap && !REDUCED) {
+            window.gsap.fromTo("#dur-display", { scale: 1.12 }, { scale: 1, duration: 0.25, ease: "back.out(3)" });
+          }
+        });
+      });
+
+      // ---------- 追加・編集・削除 ----------
+      function burstFrom(el) {
+        if (REDUCED || typeof window.confetti === "undefined") return;
+        var r = el.getBoundingClientRect();
+        window.confetti({
+          particleCount: 55, spread: 65, startVelocity: 32, scalar: 0.85,
+          origin: {
+            x: (r.left + r.width / 2) / window.innerWidth,
+            y: Math.min(0.95, (r.top + r.height / 2) / window.innerHeight)
+          },
+          colors: ["#ea580c", "#fb923c", "#0f766e", "#fbbf24"]
+        });
+      }
+
+      document.getElementById("add-btn").addEventListener("click", function () {
+        var dateVal = document.getElementById("f-date").value;
+        if (!dateVal) { toast("日付を選んでください"); return; }
+        var memo = document.getElementById("f-memo").value.trim();
+        var btn = this;
+        if (state.editId != null) {
+          var target = state.entries.find(function (e) { return e.id === state.editId; });
+          if (target) { target.date = dateVal; target.minutes = state.selMin; target.memo = memo; }
+          endEdit();
+          toast("記録を更新しました");
+        } else {
+          state.entries.push({ id: Date.now() + Math.random(), date: dateVal, minutes: state.selMin, memo: memo });
+          burstFrom(btn);
+          toast("記録しました！おつかれさまです");
+        }
+        var d = parseDate(dateVal);
+        state.viewY = d.getFullYear(); state.viewM = d.getMonth();
+        document.getElementById("f-memo").value = "";
+        saveData();
+        renderAll(true);
+        if (hasGsap && !REDUCED) {
+          window.gsap.fromTo(btn, { scale: 0.95 }, { scale: 1, duration: 0.3, ease: "back.out(3)" });
+        }
+      });
+
+      function startEdit(id) {
+        var e = state.entries.find(function (x) { return x.id === id; });
+        if (!e) return;
+        state.editId = id;
+        document.getElementById("f-date").value = e.date;
+        document.getElementById("f-memo").value = e.memo || "";
+        state.selMin = e.minutes;
+        renderDur();
+        document.getElementById("form-title").textContent = "記録を編集する";
+        var btn = document.getElementById("add-btn");
+        btn.textContent = "更新する";
+        btn.classList.add("editing");
+        document.getElementById("cancel-edit").classList.add("show");
+        renderCalendar();
+        document.getElementById("f-date").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "center" });
+      }
+      function endEdit() {
+        state.editId = null;
+        document.getElementById("form-title").textContent = "残業を記録する";
+        var btn = document.getElementById("add-btn");
+        btn.textContent = "＋ 記録する";
+        btn.classList.remove("editing");
+        document.getElementById("cancel-edit").classList.remove("show");
+        document.getElementById("f-memo").value = "";
+      }
+      document.getElementById("cancel-edit").addEventListener("click", function () {
+        endEdit();
+        document.getElementById("f-date").value = todayStr();
+        renderCalendar();
+      });
+
+      function removeEntry(id, rowEl) {
+        var done = function () {
+          state.entries = state.entries.filter(function (e) { return e.id !== id; });
+          if (state.editId === id) endEdit();
+          saveData();
+          renderAll(true);
+          toast("記録を削除しました");
+        };
+        if (hasGsap && !REDUCED && rowEl) {
+          window.gsap.to(rowEl, {
+            opacity: 0, x: 40, height: 0, paddingTop: 0, paddingBottom: 0,
+            duration: 0.3, ease: "power2.in", onComplete: done
+          });
+        } else { done(); }
+      }
+
+      // ---------- 月移動 ----------
+      function moveMonth(delta) {
+        var m = state.viewM + delta;
+        state.viewY += Math.floor(m / 12);
+        state.viewM = ((m % 12) + 12) % 12;
+        renderAll(true);
+        if (hasGsap && !REDUCED) {
+          window.gsap.fromTo(".hero-total", { scale: 0.92, opacity: 0.4 }, { scale: 1, opacity: 1, duration: 0.35, ease: "back.out(2)" });
+        }
+      }
+      document.getElementById("prev-month").addEventListener("click", function () { moveMonth(-1); });
+      document.getElementById("next-month").addEventListener("click", function () { moveMonth(1); });
+      document.getElementById("this-month").addEventListener("click", function () {
+        var t = new Date();
+        state.viewY = t.getFullYear(); state.viewM = t.getMonth();
+        document.getElementById("f-date").value = todayStr();
+        renderAll(true);
+      });
+      document.getElementById("today-date-btn").addEventListener("click", function () {
+        var t = new Date();
+        document.getElementById("f-date").value = todayStr();
+        state.viewY = t.getFullYear(); state.viewM = t.getMonth();
+        if (state.editId != null) endEdit();
+        document.getElementById("f-date").value = todayStr();
+        renderAll(true);
+        toast("日付を今日（" + (t.getMonth() + 1) + "月" + t.getDate() + "日）にしました");
+      });
+      document.getElementById("f-date").addEventListener("change", renderCalendar);
+
+      // ---------- CSV / JSON ----------
+      function download(name, text, type) {
+        var blob = new Blob([text], { type: type });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url; a.download = name;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      }
+      function csvCell(v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; }
+
+      document.getElementById("csv-btn").addEventListener("click", function () {
+        var list = monthEntries().slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+        if (!list.length) { toast("この月の記録がありません"); return; }
+        var rows = [["日付", "曜日", "残業（分）", "残業時間", "メモ"]];
+        var total = 0;
+        list.forEach(function (e) {
+          total += e.minutes;
+          rows.push([e.date, WD[parseDate(e.date).getDay()], e.minutes, fmtMin(e.minutes), e.memo || ""]);
+        });
+        rows.push(["合計", "", total, fmtMin(total), ""]);
+        var csv = "\uFEFF" + rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n");
+        download("残業メモ_" + state.viewY + "年" + (state.viewM + 1) + "月.csv", csv, "text/csv;charset=utf-8");
+        toast("CSVを書き出しました");
+      });
+
+      document.getElementById("json-btn").addEventListener("click", function () {
+        if (!state.entries.length) { toast("記録がまだありません"); return; }
+        download("残業メモ_バックアップ.json",
+          JSON.stringify({ app: "zangyo-memo", version: 1, entries: state.entries }, null, 2),
+          "application/json");
+        toast("JSONを保存しました");
+      });
+
+      document.getElementById("json-file").addEventListener("change", function () {
+        var file = this.files && this.files[0];
+        this.value = "";
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var data = JSON.parse(reader.result);
+            var arr = Array.isArray(data) ? data : data.entries;
+            if (!Array.isArray(arr)) throw new Error("bad format");
+            var clean = arr.filter(function (e) {
+              return e && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && isFinite(+e.minutes) && +e.minutes > 0;
+            }).map(function (e) {
+              return { id: e.id || (Date.now() + Math.random()), date: e.date, minutes: Math.round(+e.minutes), memo: String(e.memo || "") };
+            });
+            if (!clean.length) { toast("読み込める記録がありませんでした"); return; }
+            state.entries = clean;
+            saveData();
+            endEdit();
+            var latest = clean.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; })[0];
+            var d = parseDate(latest.date);
+            state.viewY = d.getFullYear(); state.viewM = d.getMonth();
+            state.shownTotal = 0;
+            renderAll(true);
+            toast(clean.length + "件の記録を読み込みました");
+          } catch (err) {
+            toast("JSONの形式が正しくありません");
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // ---------- GitHub用ファイル一式（ZIP） ----------
+      function buildStandaloneHtml() {
+        var clone = document.documentElement.cloneNode(true);
+        function clear(sel) { var el = clone.querySelector(sel); if (el) el.innerHTML = ""; }
+        clear("#entry-list");
+        clear("#cal-grid");
+        clear("#month-summary");
+        var toastEl = clone.querySelector("#toast");
+        if (toastEl) { toastEl.textContent = ""; toastEl.removeAttribute("style"); }
+        clone.querySelectorAll(".anim-in").forEach(function (el) { el.removeAttribute("style"); });
+        var hero = clone.querySelector("#hero-total");
+        if (hero) { hero.innerHTML = '0<span class="unit">時間</span>'; hero.removeAttribute("style"); }
+        var heroSub = clone.querySelector("#hero-sub");
+        if (heroSub) heroSub.textContent = "まずは1件、記録してみよう";
+        var fill = clone.querySelector("#progress-fill");
+        if (fill) fill.removeAttribute("style");
+        var dateIn = clone.querySelector("#f-date");
+        if (dateIn) dateIn.removeAttribute("value");
+        var memoIn = clone.querySelector("#f-memo");
+        if (memoIn) memoIn.removeAttribute("value");
+        var html = "<!doctype html>\n" + clone.outerHTML;
+        html = html.split("assets/manifest.webmanifest").join("manifest.json");
+        html = html.split("assets/icon-180.png").join("icon-180.png");
+        html = html.split("assets/icon-192.png").join("icon-192.png");
+        return html;
+      }
+
+      var GH_MANIFEST = JSON.stringify({
+        name: "残業メモ帳",
+        short_name: "残業メモ帳",
+        lang: "ja",
+        start_url: "./index.html",
+        scope: ".",
+        display: "standalone",
+        orientation: "portrait",
+        background_color: "#edf0f5",
+        theme_color: "#ea580c",
+        icons: [
+          { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
+        ]
+      }, null, 2);
+
+      var GH_README = [
+        "残業メモ帳（GitHub Pages 用ファイル一式）",
+        "",
+        "【置き方】",
+        "1. GitHubで新しいリポジトリを作る（Public）",
+        "2. このZIPの中身を全部そのままアップロードする",
+        "   （index.html / manifest.json / icon-180.png / icon-192.png / icon-512.png）",
+        "3. リポジトリの Settings → Pages → Source の Branch を「main」にして保存",
+        "4. 数分待つと https://（ユーザー名）.github.io/（リポジトリ名）/ で公開されます",
+        "",
+        "【ホーム画面に追加】",
+        "・iPhone: Safariで公開URLを開く → 共有ボタン → 「ホーム画面に追加」",
+        "・Android: Chromeで公開URLを開く → メニュー → 「ホーム画面に追加」または「アプリをインストール」",
+        "",
+        "※ 記録は開いた端末の中に保存されます（サーバーには送られません）。",
+        "※ スマホを変えるときは、アプリ内の「JSON保存」で控えを書き出してください。"
+      ].join("\n");
+
+      document.getElementById("gh-zip-btn").addEventListener("click", function () {
+        if (typeof window.JSZip === "undefined") {
+          toast("ZIP作成の準備ができませんでした。通信環境を確認してもう一度お試しください");
+          return;
+        }
+        var btn = this;
+        btn.disabled = true;
+        var zip = new window.JSZip();
+        zip.file("index.html", buildStandaloneHtml());
+        zip.file("manifest.json", GH_MANIFEST);
+        zip.file("README.txt", GH_README);
+        var iconNames = ["icon-180.png", "icon-192.png", "icon-512.png"];
+        Promise.all(iconNames.map(function (name) {
+          return fetch("assets/" + name)
+            .then(function (r) { if (!r.ok) throw new Error(name); return r.blob(); })
+            .then(function (b) { zip.file(name, b); })
+            .catch(function () { /* アイコンが取れない場合はHTMLとmanifestだけでも配布可能 */ });
+        })).then(function () {
+          return zip.generateAsync({ type: "blob" });
+        }).then(function (blob) {
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url; a.download = "zangyo-memo-github.zip";
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+          btn.disabled = false;
+          toast("GitHub用ファイル（ZIP）をダウンロードしました");
+        }).catch(function () {
+          btn.disabled = false;
+          toast("ZIPの作成に失敗しました。もう一度お試しください");
+        });
+      });
+
+      // ---------- 初期化 ----------
+      // 起動時は必ず「今日」の日付・今月を表示する（保存データがあっても過去の月に飛ばない）
+      (function () {
+        var t = new Date();
+        state.viewY = t.getFullYear(); state.viewM = t.getMonth();
+      })();
+      document.getElementById("f-date").value = todayStr();
+      loadData();
+      renderDur();
+      renderAll(false);
+      if (hasGsap && !REDUCED) {
+        window.gsap.fromTo(".anim-in",
+          { opacity: 0, y: 22 },
+          { opacity: 1, y: 0, duration: 0.55, stagger: 0.09, ease: "power2.out", clearProps: "transform" });
+        window.gsap.fromTo("#progress-fill",
+          { width: "0%" },
+          { width: document.getElementById("progress-fill").style.width || "0%", duration: 0.9, ease: "power3.out", delay: 0.3 });
+      }
+    </script>
+  </body>
+</html>
